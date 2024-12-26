@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -90,6 +91,8 @@ func NewHttpsServer() {
 	// Build handler chain
 	var handler http.Handler = mux
 	handler = RateLimiterMiddleware(rateLimiter)(handler)
+	handler = ForwardProxyMiddleware(&url.URL{Scheme: "https", Host: "example.com"})(handler)
+	handler = InputSanitizerMiddleware()(handler)
 	handler = LoggingMiddleware(handler)
 	handler = SecurityHeadersMiddleware(handler)
 
