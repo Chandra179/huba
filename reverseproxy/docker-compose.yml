@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  go-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-app
+    expose:
+      - "8080"  # Internal network port (used internally by NGINX)
+    networks:
+      - app-network
+
+  nginx-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: nginx-proxy
+    ports:
+      - "8080:80"  # Expose NGINX on host port 8080
+    depends_on:
+      - go-app
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
