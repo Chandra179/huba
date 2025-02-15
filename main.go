@@ -61,18 +61,11 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-    // Build the base handler.
     baseHandler := http.HandlerFunc(mainHandler)
-    
-    // Chain the middlewares: Recovery -> RequestID -> Logging -> Base Handler.
-    handler := recoveryMiddleware(withRequestID(loggingMiddleware(baseHandler)))
-    
-    // Register the chained handler.
-    http.Handle("/", handler)
-    
-    // Start the server.
-    log.Println("Server starting on :8080")
-    if err := http.ListenAndServe(":8080", nil); err != nil {
-        log.Fatalf("Server failed: %v", err)
-    }
+	handler := recoveryMiddleware(withRequestID(loggingMiddleware(baseHandler)))
+	http.Handle("/", handler)
+	fmt.Println("Starting server on :8080")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal(err)
+	}
 }
