@@ -60,12 +60,34 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("Hello, Production-Grade HTTP Interceptor!"))
 }
 
+func startPeriodicLogging() {
+    go func() {
+        for {
+            // Generate random number between 1000 and 9999
+            randomNum := 1000 + time.Now().UnixNano()%9000
+            
+            // Generate random string (8 characters)
+            const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+            b := make([]byte, 8)
+            for i := range b {
+                b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
+                time.Sleep(1 * time.Nanosecond) // Ensure different seeds
+            }
+            randomString := string(b)
+            
+            log.Printf("Random Number: %d, Random String: %s", randomNum, randomString)
+            time.Sleep(1 * time.Minute)
+        }
+    }()
+}
+
 func main() {
+    startPeriodicLogging() // Start periodic logging
     baseHandler := http.HandlerFunc(mainHandler)
-	handler := recoveryMiddleware(withRequestID(loggingMiddleware(baseHandler)))
-	http.Handle("/", handler)
-	fmt.Println("Starting server on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
-	}
+    handler := recoveryMiddleware(withRequestID(loggingMiddleware(baseHandler)))
+    http.Handle("/", handler)
+    log.Println("Starting server on :8080")
+    if err := http.ListenAndServe(":8080", nil); err != nil {
+        log.Fatalf("Server failed to start: %v", err)
+    }
 }
