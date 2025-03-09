@@ -1,2 +1,0 @@
-{"id":"4be97f4e-0cc7-4354-b912-093cc7ef076f","timestamp":"2025-03-01T12:31:23.01285161+07:00","level":"INFO","message":"Starting user service","fields":{"version":"1.0.0"},"caller":"logger.go:722","service":"user-service"}
-{"id":"42923944-a15a-4530-92ea-1bd79bbdc5a3","timestamp":"2025-03-01T12:31:23.016906395+07:00","level":"INFO","message":"Server listening","fields":{"address":":8080"},"caller":"logger.go:722","service":"user-service"}

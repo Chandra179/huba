@@ -64,56 +64,7 @@ type WorkerPool struct {
 	autoScale       bool
 	panicHandler    func(interface{})
 	taskTimeout     time.Duration
-	logger          Logger
-	metrics         MetricsCollector
 }
-
-// Logger interface allows for custom logging implementations.
-type Logger interface {
-	Debug(format string, args ...interface{})
-	Info(format string, args ...interface{})
-	Warn(format string, args ...interface{})
-	Error(format string, args ...interface{})
-}
-
-// MetricsCollector interface for recording performance metrics.
-type MetricsCollector interface {
-	RecordTaskQueued()
-	RecordTaskStarted()
-	RecordTaskCompleted(duration time.Duration)
-	RecordTaskFailed(err error)
-	RecordQueueSize(size int)
-	RecordActiveWorkers(count int)
-}
-
-// defaultLogger provides a basic logging implementation.
-type defaultLogger struct{}
-
-func (l *defaultLogger) Debug(format string, args ...interface{}) {
-	log.Printf("[DEBUG] "+format, args...)
-}
-
-func (l *defaultLogger) Info(format string, args ...interface{}) {
-	log.Printf("[INFO] "+format, args...)
-}
-
-func (l *defaultLogger) Warn(format string, args ...interface{}) {
-	log.Printf("[WARN] "+format, args...)
-}
-
-func (l *defaultLogger) Error(format string, args ...interface{}) {
-	log.Printf("[ERROR] "+format, args...)
-}
-
-// noopMetrics provides a no-op metrics implementation.
-type noopMetrics struct{}
-
-func (m *noopMetrics) RecordTaskQueued()                   {}
-func (m *noopMetrics) RecordTaskStarted()                  {}
-func (m *noopMetrics) RecordTaskCompleted(time.Duration)   {}
-func (m *noopMetrics) RecordTaskFailed(error)              {}
-func (m *noopMetrics) RecordQueueSize(int)                 {}
-func (m *noopMetrics) RecordActiveWorkers(int)             {}
 
 // Option defines a functional option for configuring the WorkerPool.
 type Option func(*WorkerPool)
@@ -122,20 +73,6 @@ type Option func(*WorkerPool)
 func WithName(name string) Option {
 	return func(wp *WorkerPool) {
 		wp.name = name
-	}
-}
-
-// WithLogger sets a custom logger for the worker pool.
-func WithLogger(logger Logger) Option {
-	return func(wp *WorkerPool) {
-		wp.logger = logger
-	}
-}
-
-// WithMetrics sets a metrics collector for the worker pool.
-func WithMetrics(metrics MetricsCollector) Option {
-	return func(wp *WorkerPool) {
-		wp.metrics = metrics
 	}
 }
 
@@ -185,8 +122,6 @@ func NewWorkerPool(minWorkers, maxWorkers int, options ...Option) *WorkerPool {
 		queueCapacity: maxWorkers * 10,
 		ctx:           ctx,
 		cancel:        cancel,
-		logger:        &defaultLogger{},
-		metrics:       &noopMetrics{},
 		panicHandler:  defaultPanicHandler,
 		taskTimeout:   30 * time.Second,
 	}
@@ -214,12 +149,10 @@ func (wp *WorkerPool) Start() {
 	defer wp.mu.Unlock()
 	
 	if wp.isRunning {
-		wp.logger.Warn("Worker pool '%s' is already running", wp.name)
 		return
 	}
 	
 	wp.isRunning = true
-	wp.logger.Info("Starting worker pool '%s' with %d workers (max: %d)", wp.name, wp.minWorkers, wp.maxWorkers)
 	
 	// Launch initial set of workers
 	for i := 0; i < wp.minWorkers; i++ {
@@ -236,7 +169,6 @@ func (wp *WorkerPool) Start() {
 func (wp *WorkerPool) startWorker() {
 	wp.wg.Add(1)
 	atomic.AddInt32(&wp.activeWorkers, 1)
-	wp.metrics.RecordActiveWorkers(int(atomic.LoadInt32(&wp.activeWorkers)))
 	
 	go func() {
 		defer wp.wg.Done()
@@ -259,16 +191,13 @@ func (wp *WorkerPool) worker() {
 		select {
 		case <-wp.ctx.Done():
 			// Worker pool has been stopped
-			wp.logger.Debug("Worker stopping due to pool shutdown")
 			return
 		case task, ok := <-wp.taskQueue:
 			if !ok {
 				// Task queue has been closed
-				wp.logger.Debug("Worker stopping due to closed task queue")
 				return
 			}
 			
-			wp.metrics.RecordTaskStarted()
 			
 			// Create task context with timeout if specified
 			var taskCtx context.Context
@@ -304,12 +233,7 @@ func (wp *WorkerPool) worker() {
 			// Update metrics
 			if err != nil {
 				atomic.AddInt64(&wp.failedTasks, 1)
-				wp.metrics.RecordTaskFailed(err)
-				wp.logger.Error("Task %s failed: %v", task.ID, err)
-			} else {
-				wp.metrics.RecordTaskCompleted(duration)
-				wp.logger.Debug("Task %s completed in %v", task.ID, duration)
-			}
+			} 
 			
 			atomic.AddInt64(&wp.completedTasks, 1)
 			
@@ -351,15 +275,12 @@ func (wp *WorkerPool) adjustWorkers() {
 	
 	queueSize := len(wp.taskQueue)
 	currentWorkers := int(atomic.LoadInt32(&wp.activeWorkers))
-	wp.metrics.RecordQueueSize(queueSize)
 	
 	// Scale up if queue is backing up
 	if queueSize > currentWorkers && currentWorkers < wp.maxWorkers {
 		// Calculate how many workers to add (at most doubling, up to max)
 		toAdd := min(currentWorkers, wp.maxWorkers-currentWorkers)
 		if toAdd > 0 {
-			wp.logger.Info("Scaling up: adding %d workers (current: %d, queue: %d)", 
-				toAdd, currentWorkers, queueSize)
 			for i := 0; i < toAdd; i++ {
 				wp.startWorker()
 			}
@@ -369,8 +290,7 @@ func (wp *WorkerPool) adjustWorkers() {
 	// Scale down if queue is empty and we have more than minimum workers
 	if queueSize == 0 && currentWorkers > wp.minWorkers {
 		// We'll scale down gradually by 25%
-		toRemove := max(1, (currentWorkers-wp.minWorkers)/4)
-		wp.logger.Info("Scaling down: removing approximately %d workers as tasks complete", toRemove)
+		max(1, (currentWorkers-wp.minWorkers)/4)
 		// No immediate action - workers will exit naturally when the queue is empty
 	}
 }
@@ -418,8 +338,6 @@ func (wp *WorkerPool) Submit(task Task) error {
 	case <-wp.ctx.Done():
 		return errors.New("worker pool is shutting down")
 	case wp.taskQueue <- task:
-		wp.metrics.RecordTaskQueued()
-		wp.logger.Debug("Task %s queued", task.ID)
 		return nil
 	default:
 		// Queue is full
@@ -482,8 +400,6 @@ func (wp *WorkerPool) Stop() {
 		wp.isRunning = false
 		wp.mu.Unlock()
 		
-		wp.logger.Info("Stopping worker pool '%s', waiting for in-progress tasks to complete...", wp.name)
-		
 		// Signal all workers to stop
 		wp.cancel()
 		
@@ -498,9 +414,6 @@ func (wp *WorkerPool) Stop() {
 		// Close channels
 		close(wp.taskQueue)
 		close(wp.resultChan)
-		
-		wp.logger.Info("Worker pool '%s' stopped. Stats: completed=%d, failed=%d",
-			wp.name, atomic.LoadInt64(&wp.completedTasks), atomic.LoadInt64(&wp.failedTasks))
 	})
 }
 
@@ -514,8 +427,6 @@ func (wp *WorkerPool) StopAndWait() {
 	}
 	wp.isRunning = false
 	wp.mu.Unlock()
-	
-	wp.logger.Info("Stopping worker pool '%s' and waiting for all queued tasks...", wp.name)
 	
 	// Wait for queue to drain
 	for len(wp.taskQueue) > 0 {
@@ -536,7 +447,6 @@ func (wp *WorkerPool) Pause() {
 	}
 	
 	wp.isRunning = false
-	wp.logger.Info("Worker pool '%s' paused", wp.name)
 }
 
 // Resume continues processing tasks after a pause.
@@ -549,7 +459,6 @@ func (wp *WorkerPool) Resume() {
 	}
 	
 	wp.isRunning = true
-	wp.logger.Info("Worker pool '%s' resumed", wp.name)
 }
 
 // Drain removes all pending tasks from the queue without executing them.
@@ -561,7 +470,6 @@ func (wp *WorkerPool) Drain() int {
 		case <-wp.taskQueue:
 			count++
 		default:
-			wp.logger.Info("Drained %d tasks from worker pool '%s'", count, wp.name)
 			return count
 		}
 	}
@@ -620,6 +528,4 @@ func (wp *WorkerPool) Resize(min, max int) {
 			wp.startWorker()
 		}
 	}
-	
-	wp.logger.Info("Worker pool '%s' resized: min=%d, max=%d", wp.name, min, max)
 }

@@ -8,97 +8,14 @@ import (
 	"os"
 	"os/signal"
 	"securedesign/workerpool"
-	"sync"
 	"syscall"
 	"time"
 )
 
-// CustomLogger implements the workerpool.Logger interface
-type CustomLogger struct{}
-
-func (l *CustomLogger) Debug(format string, args ...interface{}) {
-	log.Printf("[DEBUG] "+format, args...)
-}
-
-func (l *CustomLogger) Info(format string, args ...interface{}) {
-	log.Printf("[INFO] "+format, args...)
-}
-
-func (l *CustomLogger) Warn(format string, args ...interface{}) {
-	log.Printf("[WARN] "+format, args...)
-}
-
-func (l *CustomLogger) Error(format string, args ...interface{}) {
-	log.Printf("[ERROR] "+format, args...)
-}
-
-// PrometheusMetrics implements the workerpool.MetricsCollector interface
-// In a real application, this would send metrics to Prometheus
-type PrometheusMetrics struct {
-	mu                sync.Mutex
-	taskQueuedCount   int
-	taskStartedCount  int
-	taskCompletedCount int
-	taskFailedCount   int
-	queueSizeGauge    int
-	activeWorkersGauge int
-}
-
-func (m *PrometheusMetrics) RecordTaskQueued() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.taskQueuedCount++
-}
-
-func (m *PrometheusMetrics) RecordTaskStarted() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.taskStartedCount++
-}
-
-func (m *PrometheusMetrics) RecordTaskCompleted(duration time.Duration) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.taskCompletedCount++
-	// In a real app: histogram.Observe(duration.Seconds())
-}
-
-func (m *PrometheusMetrics) RecordTaskFailed(err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.taskFailedCount++
-	// In a real app: record error type, etc.
-}
-
-func (m *PrometheusMetrics) RecordQueueSize(size int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.queueSizeGauge = size
-}
-
-func (m *PrometheusMetrics) RecordActiveWorkers(count int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.activeWorkersGauge = count
-}
-
-func (m *PrometheusMetrics) PrintStats() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	fmt.Printf("Stats: Queued=%d, Started=%d, Completed=%d, Failed=%d, QueueSize=%d, Workers=%d\n",
-		m.taskQueuedCount, m.taskStartedCount, m.taskCompletedCount, 
-		m.taskFailedCount, m.queueSizeGauge, m.activeWorkersGauge)
-}
-
 func main() {
-	// Initialize metrics collector
-	metrics := &PrometheusMetrics{}
-	
 	// Create worker pool with 5 minimum and 20 maximum workers
 	pool := workerpool.NewWorkerPool(5, 20,
 		workerpool.WithName("my-service-pool"),
-		workerpool.WithLogger(&CustomLogger{}),
-		workerpool.WithMetrics(metrics),
 		workerpool.WithQueueCapacity(1000),
 		workerpool.WithAutoScaling(),
 		workerpool.WithDefaultTaskTimeout(10*time.Second),
@@ -170,9 +87,6 @@ taskLoop:
 			}
 			
 		case <-statsTicker.C:
-			// Print current stats
-			metrics.PrintStats()
-			
 			stats := pool.Stats()
 			fmt.Printf("Worker Pool Stats: active=%d, queue=%d/%d, completed=%d, failed=%d\n",
 				stats["active_workers"], stats["queue_size"], stats["queue_capacity"],
