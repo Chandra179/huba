@@ -22,6 +22,7 @@ type Task struct {
 	ID      string
 	Execute TaskFunc
 	Timeout time.Duration // Optional per-task timeout
+
 }
 
 // Result represents the outcome of a task execution.
@@ -41,29 +42,29 @@ type WorkerPool struct {
 	minWorkers    int
 	maxWorkers    int
 	queueCapacity int
-	
+
 	// Channels
-	taskQueue     chan Task
-	resultChan    chan Result
-	
+	taskQueue  chan Task
+	resultChan chan Result
+
 	// State
-	activeWorkers int32
-	totalTasks    int64
+	activeWorkers  int32
+	totalTasks     int64
 	completedTasks int64
-	failedTasks   int64
-	
+	failedTasks    int64
+
 	// Control
-	ctx           context.Context
-	cancel        context.CancelFunc
-	wg            sync.WaitGroup
-	mu            sync.RWMutex
-	isRunning     bool
-	shutdownOnce  sync.Once
-	
+	ctx          context.Context
+	cancel       context.CancelFunc
+	wg           sync.WaitGroup
+	mu           sync.RWMutex
+	isRunning    bool
+	shutdownOnce sync.Once
+
 	// Options
-	autoScale       bool
-	panicHandler    func(interface{})
-	taskTimeout     time.Duration
+	autoScale    bool
+	panicHandler func(interface{})
+	taskTimeout  time.Duration
 }
 
 // Option defines a functional option for configuring the WorkerPool.
@@ -112,9 +113,9 @@ func NewWorkerPool(minWorkers, maxWorkers int, options ...Option) *WorkerPool {
 	if maxWorkers < minWorkers {
 		maxWorkers = minWorkers
 	}
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	wp := &WorkerPool{
 		name:          "worker-pool",
 		minWorkers:    minWorkers,
@@ -125,16 +126,16 @@ func NewWorkerPool(minWorkers, maxWorkers int, options ...Option) *WorkerPool {
 		panicHandler:  defaultPanicHandler,
 		taskTimeout:   30 * time.Second,
 	}
-	
+
 	// Apply options
 	for _, option := range options {
 		option(wp)
 	}
-	
+
 	// Initialize channels
 	wp.taskQueue = make(chan Task, wp.queueCapacity)
 	wp.resultChan = make(chan Result, wp.queueCapacity)
-	
+
 	return wp
 }
 
@@ -147,18 +148,18 @@ func defaultPanicHandler(p interface{}) {
 func (wp *WorkerPool) Start() {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
-	
+
 	if wp.isRunning {
 		return
 	}
-	
+
 	wp.isRunning = true
-	
+
 	// Launch initial set of workers
 	for i := 0; i < wp.minWorkers; i++ {
 		wp.startWorker()
 	}
-	
+
 	// Start autoscaler if enabled
 	if wp.autoScale {
 		go wp.autoScaler()
@@ -169,7 +170,7 @@ func (wp *WorkerPool) Start() {
 func (wp *WorkerPool) startWorker() {
 	wp.wg.Add(1)
 	atomic.AddInt32(&wp.activeWorkers, 1)
-	
+
 	go func() {
 		defer wp.wg.Done()
 		defer atomic.AddInt32(&wp.activeWorkers, -1)
@@ -180,7 +181,7 @@ func (wp *WorkerPool) startWorker() {
 				}
 			}
 		}()
-		
+
 		wp.worker()
 	}()
 }
@@ -197,12 +198,11 @@ func (wp *WorkerPool) worker() {
 				// Task queue has been closed
 				return
 			}
-			
-			
+
 			// Create task context with timeout if specified
 			var taskCtx context.Context
 			var cancel context.CancelFunc
-			
+
 			if task.Timeout > 0 {
 				taskCtx, cancel = context.WithTimeout(wp.ctx, task.Timeout)
 			} else if wp.taskTimeout > 0 {
@@ -210,16 +210,16 @@ func (wp *WorkerPool) worker() {
 			} else {
 				taskCtx, cancel = context.WithCancel(wp.ctx)
 			}
-			
+
 			// Execute the task and capture metrics
 			startTime := time.Now()
 			result, err := task.Execute(taskCtx)
 			endTime := time.Now()
 			duration := endTime.Sub(startTime)
-			
+
 			// Clean up the context
 			cancel()
-			
+
 			// Create and send the result
 			taskResult := Result{
 				TaskID:    task.ID,
@@ -229,14 +229,14 @@ func (wp *WorkerPool) worker() {
 				EndTime:   endTime,
 				Duration:  duration,
 			}
-			
+
 			// Update metrics
 			if err != nil {
 				atomic.AddInt64(&wp.failedTasks, 1)
-			} 
-			
+			}
+
 			atomic.AddInt64(&wp.completedTasks, 1)
-			
+
 			// Send result if the pool is still running
 			select {
 			case <-wp.ctx.Done():
@@ -253,7 +253,7 @@ func (wp *WorkerPool) worker() {
 func (wp *WorkerPool) autoScaler() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-wp.ctx.Done():
@@ -268,14 +268,14 @@ func (wp *WorkerPool) autoScaler() {
 func (wp *WorkerPool) adjustWorkers() {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
-	
+
 	if !wp.isRunning {
 		return
 	}
-	
+
 	queueSize := len(wp.taskQueue)
 	currentWorkers := int(atomic.LoadInt32(&wp.activeWorkers))
-	
+
 	// Scale up if queue is backing up
 	if queueSize > currentWorkers && currentWorkers < wp.maxWorkers {
 		// Calculate how many workers to add (at most doubling, up to max)
@@ -286,7 +286,7 @@ func (wp *WorkerPool) adjustWorkers() {
 			}
 		}
 	}
-	
+
 	// Scale down if queue is empty and we have more than minimum workers
 	if queueSize == 0 && currentWorkers > wp.minWorkers {
 		// We'll scale down gradually by 25%
@@ -318,21 +318,21 @@ func (wp *WorkerPool) Submit(task Task) error {
 	if task.Execute == nil {
 		return errors.New("task function cannot be nil")
 	}
-	
+
 	// Generate an ID if not provided
 	if task.ID == "" {
 		task.ID = fmt.Sprintf("task-%d", atomic.AddInt64(&wp.totalTasks, 1))
 	}
-	
+
 	// Check if pool is running
 	wp.mu.RLock()
 	isRunning := wp.isRunning
 	wp.mu.RUnlock()
-	
+
 	if !isRunning {
 		return errors.New("worker pool is not running")
 	}
-	
+
 	// Try to submit the task
 	select {
 	case <-wp.ctx.Done():
@@ -350,18 +350,18 @@ func (wp *WorkerPool) Submit(task Task) error {
 func (wp *WorkerPool) SubmitWait(task Task) (interface{}, error) {
 	// Create a channel to receive the specific task result
 	resultCh := make(chan Result, 1)
-	
+
 	// Wrap the original task function to send result to our channel
 	originalFunc := task.Execute
 	task.Execute = func(ctx context.Context) (interface{}, error) {
 		return originalFunc(ctx)
 	}
-	
+
 	// Submit the task
 	if err := wp.Submit(task); err != nil {
 		return nil, err
 	}
-	
+
 	// Start a goroutine to listen for our specific task result
 	go func() {
 		for result := range wp.resultChan {
@@ -373,7 +373,7 @@ func (wp *WorkerPool) SubmitWait(task Task) (interface{}, error) {
 			wp.resultChan <- result
 		}
 	}()
-	
+
 	// Wait for the result
 	select {
 	case <-wp.ctx.Done():
@@ -399,18 +399,18 @@ func (wp *WorkerPool) Stop() {
 		}
 		wp.isRunning = false
 		wp.mu.Unlock()
-		
+
 		// Signal all workers to stop
 		wp.cancel()
-		
+
 		// Clear the task queue without closing it
 		for len(wp.taskQueue) > 0 {
 			<-wp.taskQueue
 		}
-		
+
 		// Wait for all workers to finish
 		wp.wg.Wait()
-		
+
 		// Close channels
 		close(wp.taskQueue)
 		close(wp.resultChan)
@@ -427,12 +427,12 @@ func (wp *WorkerPool) StopAndWait() {
 	}
 	wp.isRunning = false
 	wp.mu.Unlock()
-	
+
 	// Wait for queue to drain
 	for len(wp.taskQueue) > 0 {
 		time.Sleep(100 * time.Millisecond)
 	}
-	
+
 	// Now stop normally
 	wp.Stop()
 }
@@ -441,11 +441,11 @@ func (wp *WorkerPool) StopAndWait() {
 func (wp *WorkerPool) Pause() {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
-	
+
 	if !wp.isRunning {
 		return
 	}
-	
+
 	wp.isRunning = false
 }
 
@@ -453,18 +453,18 @@ func (wp *WorkerPool) Pause() {
 func (wp *WorkerPool) Resume() {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
-	
+
 	if wp.isRunning {
 		return
 	}
-	
+
 	wp.isRunning = true
 }
 
 // Drain removes all pending tasks from the queue without executing them.
 func (wp *WorkerPool) Drain() int {
 	count := 0
-	
+
 	for {
 		select {
 		case <-wp.taskQueue:
@@ -479,18 +479,18 @@ func (wp *WorkerPool) Drain() int {
 func (wp *WorkerPool) Stats() map[string]interface{} {
 	wp.mu.RLock()
 	defer wp.mu.RUnlock()
-	
+
 	return map[string]interface{}{
-		"name":           wp.name,
-		"is_running":     wp.isRunning,
-		"min_workers":    wp.minWorkers,
-		"max_workers":    wp.maxWorkers,
-		"active_workers": atomic.LoadInt32(&wp.activeWorkers),
-		"queue_capacity": wp.queueCapacity,
-		"queue_size":     len(wp.taskQueue),
-		"total_tasks":    atomic.LoadInt64(&wp.totalTasks),
+		"name":            wp.name,
+		"is_running":      wp.isRunning,
+		"min_workers":     wp.minWorkers,
+		"max_workers":     wp.maxWorkers,
+		"active_workers":  atomic.LoadInt32(&wp.activeWorkers),
+		"queue_capacity":  wp.queueCapacity,
+		"queue_size":      len(wp.taskQueue),
+		"total_tasks":     atomic.LoadInt64(&wp.totalTasks),
 		"completed_tasks": atomic.LoadInt64(&wp.completedTasks),
-		"failed_tasks":   atomic.LoadInt64(&wp.failedTasks),
+		"failed_tasks":    atomic.LoadInt64(&wp.failedTasks),
 	}
 }
 
@@ -508,20 +508,20 @@ func (wp *WorkerPool) Size() int {
 func (wp *WorkerPool) Resize(min, max int) {
 	wp.mu.Lock()
 	defer wp.mu.Unlock()
-	
+
 	if min < 1 {
 		min = 1
 	}
 	if max < min {
 		max = min
 	}
-	
+
 	wp.minWorkers = min
 	wp.maxWorkers = max
-	
+
 	// Adjust current number of workers if needed
 	currentWorkers := int(atomic.LoadInt32(&wp.activeWorkers))
-	
+
 	if currentWorkers < min {
 		// Need to add workers
 		for i := 0; i < min-currentWorkers; i++ {
