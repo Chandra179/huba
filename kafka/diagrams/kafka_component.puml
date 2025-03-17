@@ -1,0 +1,70 @@
+@startuml Kafka Component Diagram
+
+package "Kafka Package" {
+  [KafkaConfig] as Config
+  [Producer] as Producer
+  [Consumer] as Consumer
+  [Topic Management] as TopicMgmt
+  
+  interface "Produce()" as ProduceAPI
+  interface "ProduceBatch()" as BatchAPI
+  interface "Consume()" as ConsumeAPI
+  interface "CreateTopic()" as CreateAPI
+  interface "DeleteTopic()" as DeleteAPI
+  
+  Producer -- ProduceAPI
+  Producer -- BatchAPI
+  Consumer -- ConsumeAPI
+  TopicMgmt -- CreateAPI
+  TopicMgmt -- DeleteAPI
+}
+
+package "Client Application" {
+  [Client Code] as Client
+}
+
+cloud "Kafka Cluster" {
+  [Broker 1] as Broker1
+  [Broker 2] as Broker2
+  [Broker 3] as Broker3
+  
+  Broker1 -- Broker2
+  Broker2 -- Broker3
+  Broker3 -- Broker1
+}
+
+Client --> ProduceAPI
+Client --> BatchAPI
+Client --> ConsumeAPI
+Client --> CreateAPI
+Client --> DeleteAPI
+
+Producer --> Broker1
+Consumer --> Broker1
+
+note right of Config
+  Configures:
+  - Brokers
+  - Topic
+  - Retention
+  - Partitions
+  - Replication
+  - Retry settings
+  - Commit settings
+end note
+
+note bottom of Consumer
+  Supports:
+  - Auto-commit
+  - Manual commit
+  - Message handlers
+end note
+
+note bottom of Producer
+  Supports:
+  - Idempotence
+  - Retries with backoff
+  - Batch operations
+end note
+
+@enduml 

@@ -1,0 +1,65 @@
+@startuml Kafka Sequence Diagram
+
+actor Client
+participant "Producer" as Producer
+participant "Kafka Broker" as Kafka
+participant "Consumer" as Consumer
+participant "MessageHandler" as Handler
+
+== Topic Management ==
+Client -> Kafka: CreateTopic(config)
+note right: Sets retention period, size, partitions, etc.
+Kafka --> Client: Topic Created
+
+== Message Production ==
+Client -> Producer: NewProducer(config)
+activate Producer
+
+Client -> Producer: Produce(ctx, key, value)
+activate Producer
+Producer -> Kafka: WriteMessages(msg)
+note right: With retries and backoff
+Kafka --> Producer: Acknowledgment
+Producer --> Client: Success/Error
+deactivate Producer
+
+== Message Consumption ==
+Client -> Consumer: NewConsumer(config)
+activate Consumer
+note right: Configures auto-commit if enabled
+
+Client -> Consumer: Consume(ctx, handler)
+activate Consumer
+
+loop Until context canceled
+    Consumer -> Kafka: FetchMessage()
+    Kafka --> Consumer: Message
+    Consumer -> Handler: handler(message)
+    activate Handler
+    Handler --> Consumer: Result
+    deactivate Handler
+    
+    alt Auto-commit enabled
+        Consumer -> Consumer: Add to uncommitted
+        note right: Periodic commit based on interval
+    else Manual commit
+        Consumer -> Kafka: CommitMessages()
+        Kafka --> Consumer: Commit Acknowledged
+    end
+end
+
+Client -> Consumer: Close()
+Consumer -> Kafka: CommitMessages(remaining)
+Consumer -> Consumer: Stop auto-commit loop
+Consumer --> Client: Closed
+deactivate Consumer
+
+Client -> Producer: Close()
+Producer --> Client: Closed
+deactivate Producer
+
+== Topic Cleanup ==
+Client -> Kafka: DeleteTopic(config)
+Kafka --> Client: Topic Deleted
+
+@enduml 
