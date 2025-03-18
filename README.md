@@ -137,4 +137,59 @@ Configuration is handled through environment variables. See `.env.example` for a
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.
+
+# Distributed Cache System with Redis
+
+This package provides a Go implementation of a distributed cache system using Redis.
+
+## Features
+
+- Basic cache operations (Get, Set, Delete, Exists)
+- Cache-aside pattern for transparent loading from a data source
+- Distributed locking for coordinating access across services
+- Rate limiting with sliding window algorithm
+
+## Requirements
+
+- Go 1.24 or later
+- Redis server (v6.0 or later recommended)
+
+## Installation
+
+Add the dependency to your project:
+
+```bash
+go get github.com/redis/go-redis/v9
+```
+
+## Running Redis with Docker
+
+The project includes a Docker Compose configuration for running Redis:
+
+```bash
+# Start Redis container
+docker-compose up -d redis
+
+# Or use the management script
+./scripts/redis-management.sh start
+```
+
+The Redis container is configured with:
+- Port: 6379 (default Redis port)
+- Persistence: AOF (Append Only File) enabled
+- Optional password protection (set via REDIS_PASSWORD environment variable)
+
+Management script commands:
+```bash
+./scripts/redis-management.sh start  # Start Redis container
+./scripts/redis-management.sh stop   # Stop Redis container
+./scripts/redis-management.sh cli    # Open Redis CLI
+./scripts/redis-management.sh flush  # Flush all Redis data
+./scripts/redis-management.sh logs   # View Redis logs
+./scripts/redis-management.sh info   # Show Redis info
+```
+
+## Basic Usage
+
+// ... existing code ... 
