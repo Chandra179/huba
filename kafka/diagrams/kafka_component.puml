@@ -7,14 +7,20 @@ package "Kafka Package" {
   [Topic Management] as TopicMgmt
   
   interface "Produce()" as ProduceAPI
+  interface "ProduceAsync()" as ProduceAsyncAPI
   interface "ProduceBatch()" as BatchAPI
+  interface "ProduceBatchAsync()" as BatchAsyncAPI
   interface "Consume()" as ConsumeAPI
+  interface "ConsumeAsync()" as ConsumeAsyncAPI
   interface "CreateTopic()" as CreateAPI
   interface "DeleteTopic()" as DeleteAPI
   
   Producer -- ProduceAPI
+  Producer -- ProduceAsyncAPI
   Producer -- BatchAPI
+  Producer -- BatchAsyncAPI
   Consumer -- ConsumeAPI
+  Consumer -- ConsumeAsyncAPI
   TopicMgmt -- CreateAPI
   TopicMgmt -- DeleteAPI
 }
@@ -34,8 +40,11 @@ cloud "Kafka Cluster" {
 }
 
 Client --> ProduceAPI
+Client --> ProduceAsyncAPI
 Client --> BatchAPI
+Client --> BatchAsyncAPI
 Client --> ConsumeAPI
+Client --> ConsumeAsyncAPI
 Client --> CreateAPI
 Client --> DeleteAPI
 
@@ -51,6 +60,7 @@ note right of Config
   - Replication
   - Retry settings
   - Commit settings
+  - Async settings
 end note
 
 note bottom of Consumer
@@ -58,6 +68,9 @@ note bottom of Consumer
   - Auto-commit
   - Manual commit
   - Message handlers
+  - Synchronous consumption
+  - Asynchronous consumption
+  - Concurrent processing
 end note
 
 note bottom of Producer
@@ -65,6 +78,8 @@ note bottom of Producer
   - Idempotence
   - Retries with backoff
   - Batch operations
+  - Synchronous sending
+  - Asynchronous sending
 end note
 
 @enduml 

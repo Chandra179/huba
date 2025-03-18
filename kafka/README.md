@@ -12,10 +12,13 @@ A simple message broker implementation using Kafka and Golang with the following
    - Retry mechanism with configurable retry count
    - Exponential backoff between retries
    - Idempotent message delivery to prevent duplicates
+   - Synchronous and asynchronous message production
 
 3. **Consumer Features**
    - Manual and automatic offset commit (acknowledgment)
    - Configurable commit interval for auto-commit mode
+   - Synchronous and asynchronous message consumption
+   - Configurable concurrency for parallel message processing
 
 ## Usage
 
@@ -33,6 +36,11 @@ config.EnableIdempotence = true            // Enable idempotent producer
 config.GroupID = "my-consumer-group"
 config.AutoCommit = true                   // Enable auto commit
 config.CommitInterval = 5 * time.Second    // Commit every 5 seconds
+
+// Async configuration
+config.AsyncProducer = true                // Enable async producer
+config.AsyncConsumer = true                // Enable async consumer
+config.ConsumerConcurrency = 5             // 5 concurrent message processors
 ```
 
 ### Creating a Topic
@@ -44,14 +52,14 @@ if err := kafka.CreateTopic(ctx, config); err != nil {
 }
 ```
 
-### Producer Example
+### Synchronous Producer Example
 
 ```go
 // Create producer
-p := producer.NewProducer(config)
+p := kafka.NewProducer(config)
 defer p.Close()
 
-// Produce a message
+// Produce a message synchronously
 key := []byte("message-key")
 value := []byte("message-value")
 if err := p.Produce(ctx, key, value); err != nil {
@@ -59,11 +67,31 @@ if err := p.Produce(ctx, key, value); err != nil {
 }
 ```
 
-### Consumer Example
+### Asynchronous Producer Example
+
+```go
+// Create producer
+p := kafka.NewProducer(config)
+defer p.Close()
+
+// Produce a message asynchronously
+key := []byte("message-key")
+value := []byte("message-value")
+p.ProduceAsync(ctx, key, value)
+
+// Or produce batch asynchronously
+messages := []kafka.Message{
+    {Key: []byte("key1"), Value: []byte("value1")},
+    {Key: []byte("key2"), Value: []byte("value2")},
+}
+p.ProduceBatchAsync(ctx, messages)
+```
+
+### Synchronous Consumer Example
 
 ```go
 // Create consumer
-c := consumer.NewConsumer(config)
+c := kafka.NewConsumer(config)
 defer c.Close()
 
 // Define message handler
@@ -72,10 +100,33 @@ handler := func(msg kafka.Message) error {
     return nil
 }
 
-// Start consuming
+// Start consuming synchronously
 if err := c.Consume(ctx, handler); err != nil {
     log.Printf("Error consuming messages: %v", err)
 }
+```
+
+### Asynchronous Consumer Example
+
+```go
+// Create consumer
+c := kafka.NewConsumer(config)
+defer c.Close()
+
+// Define message handler
+handler := func(msg kafka.Message) error {
+    log.Printf("Consumed message: %s", string(msg.Value))
+    return nil
+}
+
+// Start consuming asynchronously with 5 concurrent workers
+if err := c.ConsumeAsync(ctx, handler, 5); err != nil {
+    log.Printf("Error starting async consumer: %v", err)
+}
+
+// Stop consuming when done
+// This will be called automatically when c.Close() is called
+c.StopConsumeAsync()
 ```
 
 ## Running the Example

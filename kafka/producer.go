@@ -23,7 +23,7 @@ func NewProducer(config *KafkaConfig) *Producer {
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: kafka.RequireAll, // Wait for all replicas to acknowledge
 		MaxAttempts:  config.MaxRetries,
-		Async:        false, // Synchronous by default for reliability
+		Async:        config.AsyncProducer, // Use the configuration value
 	}
 
 	// Set idempotence if enabled
@@ -49,7 +49,13 @@ func (p *Producer) Produce(ctx context.Context, key, value []byte) error {
 		Time:  time.Now(),
 	}
 
-	// Attempt to write with retries and backoff
+	// If async is enabled, use WriteMessages directly without retry handling
+	// as the kafka-go library will handle retries internally for async mode
+	if p.config.AsyncProducer {
+		return p.writer.WriteMessages(ctx, msg)
+	}
+
+	// Synchronous mode with retries and backoff
 	var err error
 	for attempt := 0; attempt <= p.config.MaxRetries; attempt++ {
 		// Try to write the message
@@ -76,9 +82,32 @@ func (p *Producer) Produce(ctx context.Context, key, value []byte) error {
 	return err
 }
 
+// ProduceAsync sends a message to Kafka asynchronously
+// This method doesn't wait for confirmation and returns immediately
+func (p *Producer) ProduceAsync(ctx context.Context, key, value []byte) {
+	msg := kafka.Message{
+		Key:   key,
+		Value: value,
+		Time:  time.Now(),
+	}
+
+	// Write message asynchronously
+	go func() {
+		if err := p.writer.WriteMessages(ctx, msg); err != nil {
+			// Log error or handle it as needed
+			fmt.Printf("Error in async message production: %v\n", err)
+		}
+	}()
+}
+
 // ProduceBatch sends multiple messages to Kafka with retries and backoff
 func (p *Producer) ProduceBatch(ctx context.Context, messages []kafka.Message) error {
-	// Attempt to write with retries and backoff
+	// If async is enabled, use WriteMessages directly without retry handling
+	if p.config.AsyncProducer {
+		return p.writer.WriteMessages(ctx, messages...)
+	}
+
+	// Synchronous mode with retries and backoff
 	var err error
 	for attempt := 0; attempt <= p.config.MaxRetries; attempt++ {
 		// Try to write the messages
@@ -103,6 +132,17 @@ func (p *Producer) ProduceBatch(ctx context.Context, messages []kafka.Message) e
 	}
 
 	return err
+}
+
+// ProduceBatchAsync sends multiple messages to Kafka asynchronously
+func (p *Producer) ProduceBatchAsync(ctx context.Context, messages []kafka.Message) {
+	// Write messages asynchronously
+	go func() {
+		if err := p.writer.WriteMessages(ctx, messages...); err != nil {
+			// Log error or handle it as needed
+			fmt.Printf("Error in async batch production: %v\n", err)
+		}
+	}()
 }
 
 // Close closes the producer

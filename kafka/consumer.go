@@ -22,6 +22,9 @@ type Consumer struct {
 	stopCommit    chan struct{}
 	commitWg      sync.WaitGroup
 	autoCommitter bool
+	stopConsume   chan struct{}
+	isConsuming   bool
+	consumeWg     sync.WaitGroup
 }
 
 // NewConsumer creates a new Kafka consumer with the given configuration
@@ -44,6 +47,8 @@ func NewConsumer(config *KafkaConfig) *Consumer {
 		uncommitted:   make([]kafka.Message, 0),
 		lastCommit:    time.Now(),
 		stopCommit:    make(chan struct{}),
+		stopConsume:   make(chan struct{}),
+		isConsuming:   false,
 		autoCommitter: config.AutoCommit,
 	}
 
@@ -72,7 +77,107 @@ func (c *Consumer) autoCommitLoop() {
 	}
 }
 
-// Consume reads and processes messages from Kafka
+// ConsumeAsync starts consuming messages asynchronously
+// The provided handler will be called for each message in a separate goroutine
+func (c *Consumer) ConsumeAsync(ctx context.Context, handler MessageHandler, concurrency int) error {
+	if c.isConsuming {
+		return fmt.Errorf("consumer is already consuming messages")
+	}
+
+	c.isConsuming = true
+	c.stopConsume = make(chan struct{})
+
+	// Create a channel to pass messages to workers
+	messageChan := make(chan kafka.Message, concurrency)
+
+	// Start worker goroutines
+	for i := 0; i < concurrency; i++ {
+		c.consumeWg.Add(1)
+		go func() {
+			defer c.consumeWg.Done()
+			for {
+				select {
+				case msg, ok := <-messageChan:
+					if !ok {
+						return // Channel closed, exit
+					}
+
+					// Process message with handler
+					if err := handler(msg); err != nil {
+						fmt.Printf("Error handling message: %v\n", err)
+						continue
+					}
+
+					// Add to uncommitted messages
+					c.commitMutex.Lock()
+					c.uncommitted = append(c.uncommitted, msg)
+					c.commitMutex.Unlock()
+
+					// If not using auto-commit, commit immediately
+					if !c.autoCommitter {
+						if err := c.commitOffsets(context.Background()); err != nil {
+							fmt.Printf("Error committing offsets: %v\n", err)
+						}
+					}
+				case <-c.stopConsume:
+					return
+				}
+			}
+		}()
+	}
+
+	// Start fetching messages in a separate goroutine
+	c.consumeWg.Add(1)
+	go func() {
+		defer c.consumeWg.Done()
+		defer close(messageChan)
+
+		for {
+			select {
+			case <-c.stopConsume:
+				return
+			case <-ctx.Done():
+				return
+			default:
+				// Read message
+				msg, err := c.reader.FetchMessage(ctx)
+				if err != nil {
+					if ctx.Err() == nil {
+						fmt.Printf("Error fetching message: %v\n", err)
+					}
+					// Backoff a bit on errors
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+
+				// Send message to workers
+				select {
+				case messageChan <- msg:
+					// Message sent to worker
+				case <-c.stopConsume:
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+
+	return nil
+}
+
+// StopConsumeAsync stops the asynchronous consumption of messages
+func (c *Consumer) StopConsumeAsync() {
+	if !c.isConsuming {
+		return
+	}
+
+	close(c.stopConsume)
+	c.consumeWg.Wait()
+	c.isConsuming = false
+}
+
+// Consume reads and processes messages from Kafka synchronously
 func (c *Consumer) Consume(ctx context.Context, handler MessageHandler) error {
 	for {
 		// Check if context is done
@@ -132,6 +237,11 @@ func (c *Consumer) commitOffsets(ctx context.Context) error {
 
 // Close stops the consumer and commits any remaining offsets
 func (c *Consumer) Close() error {
+	// Stop async consumption if running
+	if c.isConsuming {
+		c.StopConsumeAsync()
+	}
+
 	// Stop auto-commit goroutine if running
 	if c.autoCommitter {
 		close(c.stopCommit)

@@ -14,6 +14,9 @@ class KafkaConfig {
   +EnableIdempotence bool
   +AutoCommit bool
   +CommitInterval time.Duration
+  +AsyncProducer bool
+  +AsyncConsumer bool
+  +ConsumerConcurrency int
 }
 
 class Producer {
@@ -21,7 +24,9 @@ class Producer {
   -config *KafkaConfig
   +NewProducer(config *KafkaConfig) *Producer
   +Produce(ctx context.Context, key, value []byte) error
+  +ProduceAsync(ctx context.Context, key, value []byte)
   +ProduceBatch(ctx context.Context, messages []kafka.Message) error
+  +ProduceBatchAsync(ctx context.Context, messages []kafka.Message)
   +Close() error
 }
 
@@ -34,8 +39,13 @@ class Consumer {
   -commitWg sync.WaitGroup
   -autoCommitter bool
   -commitMutex sync.Mutex
+  -stopConsume chan struct{}
+  -isConsuming bool
+  -consumeWg sync.WaitGroup
   +NewConsumer(config *KafkaConfig) *Consumer
   +Consume(ctx context.Context, handler MessageHandler) error
+  +ConsumeAsync(ctx context.Context, handler MessageHandler, concurrency int) error
+  +StopConsumeAsync()
   -commitOffsets(ctx context.Context) error
   -autoCommitLoop()
   +Close() error
