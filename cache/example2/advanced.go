@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"securedesign/cache"
+	"huba/cache"
 )
 
 type User struct {

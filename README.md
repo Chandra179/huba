@@ -2,6 +2,8 @@
 
 GoLib is a comprehensive, modular Go library for implementing secure authentication, authorization, distributed caching, observability, and scalable patterns in web applications and microservices.
 
+---
+
 ## Features
 
 - **OAuth 2.0 & SSO**: Integrations for Google OAuth, Keycloak, and OpenID Connect.
@@ -11,21 +13,24 @@ GoLib is a comprehensive, modular Go library for implementing secure authenticat
 - **Cryptographic Utilities**: ECDSA, HMAC, and more.
 - **Worker Pool**: Efficient concurrent processing.
 - **Distributed Cache (Redis)**: Cache-aside pattern, distributed locking, and rate limiting.
+- **Modular Design**: Each feature is provided as a standalone Go package.
+- **Extensive Examples**: Each module includes runnable examples.
+- **Docker Support**: Easily run dependencies and the library in containers.
 
 ---
 
 ## Module Overview
 
 | Module         | Description                                                      |
-|---------------|------------------------------------------------------------------|
-| `oauth`       | OAuth 2.0 client, Google integration, middleware, handlers        |
-| `webauthn`    | Passwordless authentication, user store, HTTP handlers            |
-| `sso`         | SSO providers (Keycloak), session management, RBAC                |
-| `kafka`       | Kafka producer/consumer, message utilities                        |
-| `otel`        | OpenTelemetry tracing, metrics, logging                           |
-| `cryptoutils` | ECDSA, HMAC, and cryptographic helpers                            |
-| `workerpool`  | Goroutine pool for concurrent task processing                     |
-| `cache`       | Redis-based distributed cache, locking, rate limiting             |
+|----------------|------------------------------------------------------------------|
+| `oauth`        | OAuth 2.0 client, Google integration, middleware, handlers        |
+| `webauthn`     | Passwordless authentication, user store, HTTP handlers           |
+| `sso`          | SSO providers (Keycloak), session management, RBAC               |
+| `kafka`        | Kafka producer/consumer, message utilities                       |
+| `otel`         | OpenTelemetry tracing, metrics, logging                          |
+| `cryptoutils`  | ECDSA, HMAC, and cryptographic helpers                           |
+| `workerpool`   | Goroutine pool for concurrent task processing                    |
+| `cache`        | Redis-based distributed cache, locking, rate limiting            |
 
 See each module's `README.md` or `example/` directory for details and usage.
 
@@ -34,17 +39,15 @@ See each module's `README.md` or `example/` directory for details and usage.
 ## Getting Started
 
 ### Prerequisites
+
 - Go 1.24 or higher
 - Docker (for running examples with dependencies)
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/securedesign.git
 cd securedesign
-
-# Install dependencies
 go mod download
 ```
 
@@ -53,25 +56,11 @@ go mod download
 Each module contains an `example` directory with sample implementations:
 
 ```bash
-# Run WebAuthn example
-cd webauthn/example
-go run main.go
-
-# Run OAuth example
-cd oauth/example
-go run main.go
-
-# Run OTEL example
-cd otel/example
-go run main.go
-
-# Run Kafka example
-cd kafka/example
-go run main.go
-
-# Run Redis cache example
-cd cache/example
-go run main.go
+cd webauthn/example && go run main.go
+cd oauth/example && go run main.go
+cd otel/example && go run main.go
+cd kafka/example && go run main.go
+cd cache/example && go run main.go
 ```
 
 ---
@@ -123,12 +112,14 @@ Configuration is handled through environment variables. See `.env.example` for a
 The `cache` package provides a Go implementation of a distributed cache system using Redis.
 
 ### Features
+
 - Basic cache operations (Get, Set, Delete, Exists)
 - Cache-aside pattern for transparent loading from a data source
 - Distributed locking for coordinating access across services
 - Rate limiting with sliding window algorithm
 
 ### Requirements
+
 - Go 1.24 or later
 - Redis server (v6.0 or later recommended)
 
@@ -137,38 +128,24 @@ The `cache` package provides a Go implementation of a distributed cache system u
 The project includes a Docker Compose configuration for running Redis:
 
 ```bash
-# Start Redis container
 docker-compose up -d redis
-
 # Or use the management script
 ./cache/redis-management.sh start
 ```
 
 The Redis container is configured with:
+
 - Port: 6379 (default Redis port)
 - Persistence: AOF (Append Only File) enabled
 - Optional password protection (set via REDIS_PASSWORD environment variable)
 
 Management script commands:
+
 ```bash
-./cache/redis-management.sh start  # Start Redis container
-./cache/redis-management.sh stop   # Stop Redis container
-./cache/redis-management.sh cli    # Open Redis CLI
-./cache/redis-management.sh flush  # Flush all Redis data
-./cache/redis-management.sh logs   # View Redis logs
-./cache/redis-management.sh info   # Show Redis info
+./cache/redis-management.sh start   # Start Redis container
+./cache/redis-management.sh stop    # Stop Redis container
+./cache/redis-management.sh cli     # Open Redis CLI
+./cache/redis-management.sh flush   # Flush all Redis data
+./cache/redis-management.sh logs    # View Redis logs
+./cache/redis-management.sh info    # Show Redis info
 ```
-
----
-
-## Contributing
-
-Contributions are welcome! Please open issues or submit pull requests. For major changes, open an issue first to discuss what you would like to change.
-
-## License
-
-This project is licensed under the MIT License.
-
-## Contact
-
-For questions or support, open an issue or contact the maintainer at [your-email@example.com].

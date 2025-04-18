@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"huba/kafka"
 	"log"
 	"os"
 	"os/signal"
-	"securedesign/kafka"
 	"sync"
 	"syscall"
 	"time"

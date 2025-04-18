@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"securedesign/webauthn"
+	"huba/webauthn"
 )
 
 func main() {

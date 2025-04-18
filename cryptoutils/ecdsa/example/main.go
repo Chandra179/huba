@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"huba/cryptoutils/ecdsa"
 	"log"
-	"securedesign/cryptoutils/ecdsa"
 )
 
 func main() {

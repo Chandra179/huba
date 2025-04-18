@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"securedesign/cache"
+	"huba/cache"
 )
 
 type User struct {

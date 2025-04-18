@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"securedesign/oauth"
+	"huba/oauth"
 )
 
 // ExampleSetup demonstrates how to set up Google OAuth2 authentication

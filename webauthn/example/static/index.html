@@ -234,7 +234,13 @@
                     }
                 }
 
-                // Get credentials
+                /*
+                The code retrieves the user's authentication credentials using the WebAuthn API. 
+                It prompts the user to authenticate with a registered authenticator 
+                (e.g., a security key, fingerprint scanner, or face recognition) 
+                and collects the necessary data to verify their identity.
+                Ref: https://developer.mozilla.org/en-US/docs/Web/API/Credential_Management_API
+                */
                 const credential = await navigator.credentials.get({
                     publicKey: beginData.publicKey
                 });

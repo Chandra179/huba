@@ -87,11 +87,11 @@ func TestUserService_GetUser(t *testing.T) {
 					CreatedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 					UpdatedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 				}
-				
+
 				infoCall := logger.On("Info", "Getting user").Return()
 				queryCall := db.On("QueryUser", mock.Anything, "123").Return(mockUser, nil)
 				successCall := logger.On("Info", "User retrieved successfully").Return()
-				
+
 				mock.InOrder(
 					infoCall,
 					queryCall,
@@ -114,7 +114,7 @@ func TestUserService_GetUser(t *testing.T) {
 				infoCall := logger.On("Info", "Getting user").Return()
 				queryCall := db.On("QueryUser", mock.Anything, "999").Return(nil, ErrUserNotFound)
 				errorCall := logger.On("Error", "Failed to get user", "error", ErrUserNotFound).Return()
-				
+
 				mock.InOrder(
 					infoCall,
 					queryCall,
@@ -131,7 +131,7 @@ func TestUserService_GetUser(t *testing.T) {
 				infoCall := logger.On("Info", "Getting user").Return()
 				queryCall := db.On("QueryUser", mock.Anything, "456").Return(nil, ErrDatabaseError)
 				errorCall := logger.On("Error", "Failed to get user", "error", ErrDatabaseError).Return()
-				
+
 				mock.InOrder(
 					infoCall,
 					queryCall,
@@ -147,7 +147,7 @@ func TestUserService_GetUser(t *testing.T) {
 			mockSetup: func(db *MockDatabase, logger *MockLogger) {
 				infoCall := logger.On("Info", "Getting user").Return()
 				errorCall := logger.On("Error", "Invalid user ID provided").Return()
-				
+
 				mock.InOrder(
 					infoCall,
 					errorCall,
@@ -162,21 +162,21 @@ func TestUserService_GetUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Enable parallel test execution
 			t.Parallel()
-			
+
 			// Create mocks
 			mockDB := new(MockDatabase)
 			mockLogger := new(MockLogger)
-			
+
 			// Setup mocks for this specific test case
 			tc.mockSetup(mockDB, mockLogger)
-			
+
 			// Create service with mocks
 			userService := NewUserService(mockDB, mockLogger)
-			
+
 			// Call the method being tested
 			ctx := context.Background()
 			user, err := userService.GetUser(ctx, tc.userID)
-			
+
 			// Assert expectations
 			if tc.expectedErr != nil {
 				assert.Error(t, err)
@@ -191,18 +191,18 @@ func TestUserService_GetUser(t *testing.T) {
 				assert.Equal(t, tc.expectedUser.CreatedAt, user.CreatedAt)
 				assert.Equal(t, tc.expectedUser.UpdatedAt, user.UpdatedAt)
 			}
-			
+
 			// Verify all expectations were met (call counts, arguments)
 			mockDB.AssertExpectations(t)
 			mockLogger.AssertExpectations(t)
-			
+
 			// Verify specific call count if needed
 			if tc.userID != "" {
 				mockDB.AssertNumberOfCalls(t, "QueryUser", 1)
 			} else {
 				mockDB.AssertNumberOfCalls(t, "QueryUser", 0)
 			}
-			
+
 			// Verify argument values for specific calls
 			if tc.userID == "123" {
 				mockDB.AssertCalled(t, "QueryUser", mock.Anything, "123")
@@ -215,7 +215,7 @@ func TestUserService_CreateUser(t *testing.T) {
 	// Setup
 	mockDB := new(MockDatabase)
 	mockLogger := new(MockLogger)
-	
+
 	// Register cleanup to be executed after test finishes
 	t.Cleanup(func() {
 		// Simulate database connection closing
@@ -223,46 +223,46 @@ func TestUserService_CreateUser(t *testing.T) {
 		mockDB.Close()
 		mockDB.AssertExpectations(t)
 	})
-	
+
 	// Setup expected calls in expected order
 	infoCreateCall := mockLogger.On("Info", "Creating user").Return()
-	
+
 	// Use mock.MatchedBy to verify argument values
 	insertCall := mockDB.On("InsertUser", mock.Anything, mock.MatchedBy(func(u *User) bool {
-		return u.Name == "Jane Smith" && 
-		       u.Email == "jane@example.com" && 
-		       !u.CreatedAt.IsZero() && 
-		       !u.UpdatedAt.IsZero()
+		return u.Name == "Jane Smith" &&
+			u.Email == "jane@example.com" &&
+			!u.CreatedAt.IsZero() &&
+			!u.UpdatedAt.IsZero()
 	})).Return(nil)
-	
+
 	infoSuccessCall := mockLogger.On("Info", "User created successfully").Return()
-	
+
 	// Define the order of calls
 	mock.InOrder(
 		infoCreateCall,
 		insertCall,
 		infoSuccessCall,
 	)
-	
+
 	// Create service with mocks
 	userService := NewUserService(mockDB, mockLogger)
-	
+
 	// Execute test
 	newUser := &User{
 		Name:  "Jane Smith",
 		Email: "jane@example.com",
 	}
-	
+
 	err := userService.CreateUser(context.Background(), newUser)
-	
+
 	// Assert results
 	require.NoError(t, err)
-	
+
 	// Verify calls with specific argument matchers
 	mockDB.AssertCalled(t, "InsertUser", mock.Anything, mock.MatchedBy(func(u *User) bool {
 		return u.Name == "Jane Smith" && u.Email == "jane@example.com"
 	}))
-	
+
 	// Verify call counts
 	mockDB.AssertNumberOfCalls(t, "InsertUser", 1)
 	mockLogger.AssertNumberOfCalls(t, "Info", 2) // Creating user + User created successfully
@@ -273,35 +273,35 @@ func TestUserService_DeleteUser_Concurrent(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping concurrent test in short mode")
 	}
-	
+
 	// Create a test function that will be run concurrently
 	testDelete := func(userID string, t *testing.T) {
 		t.Parallel() // Mark as parallel
-		
+
 		mockDB := new(MockDatabase)
 		mockLogger := new(MockLogger)
-		
+
 		// Set up ordered call expectations
 		infoDeleteCall := mockLogger.On("Info", "Deleting user").Return()
 		deleteCall := mockDB.On("DeleteUser", mock.Anything, userID).Return(nil)
 		infoSuccessCall := mockLogger.On("Info", "User deleted successfully").Return()
-		
+
 		mock.InOrder(
 			infoDeleteCall,
 			deleteCall,
 			infoSuccessCall,
 		)
-		
+
 		userService := NewUserService(mockDB, mockLogger)
-		
+
 		err := userService.DeleteUser(context.Background(), userID)
 		assert.NoError(t, err)
-		
+
 		mockDB.AssertExpectations(t)
 		mockLogger.AssertExpectations(t)
 		mockDB.AssertNumberOfCalls(t, "DeleteUser", 1)
 	}
-	
+
 	// Run multiple concurrent tests
 	userIDs := []string{"user1", "user2", "user3", "user4", "user5"}
 	for _, id := range userIDs {
@@ -329,16 +329,16 @@ func TestUserService_UpdateUser(t *testing.T) {
 			},
 			setupMocks: func(db *MockDatabase, logger *MockLogger) {
 				infoUpdateCall := logger.On("Info", "Updating user").Return()
-				
+
 				updateCall := db.On("UpdateUser", mock.Anything, mock.MatchedBy(func(u *User) bool {
-					return u.ID == "123" && 
-					       u.Name == "Updated Name" && 
-					       u.Email == "updated@example.com" && 
-					       !u.UpdatedAt.IsZero()
+					return u.ID == "123" &&
+						u.Name == "Updated Name" &&
+						u.Email == "updated@example.com" &&
+						!u.UpdatedAt.IsZero()
 				})).Return(nil)
-				
+
 				infoSuccessCall := logger.On("Info", "User updated successfully").Return()
-				
+
 				mock.InOrder(
 					infoUpdateCall,
 					updateCall,
@@ -353,7 +353,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 			setupMocks: func(db *MockDatabase, logger *MockLogger) {
 				infoCall := logger.On("Info", "Updating user").Return()
 				errorCall := logger.On("Error", "Invalid user data provided").Return()
-				
+
 				mock.InOrder(
 					infoCall,
 					errorCall,
@@ -370,7 +370,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 			setupMocks: func(db *MockDatabase, logger *MockLogger) {
 				infoCall := logger.On("Info", "Updating user").Return()
 				errorCall := logger.On("Error", "Invalid user data provided").Return()
-				
+
 				mock.InOrder(
 					infoCall,
 					errorCall,
@@ -387,13 +387,13 @@ func TestUserService_UpdateUser(t *testing.T) {
 			},
 			setupMocks: func(db *MockDatabase, logger *MockLogger) {
 				infoCall := logger.On("Info", "Updating user").Return()
-				
+
 				updateCall := db.On("UpdateUser", mock.Anything, mock.MatchedBy(func(u *User) bool {
 					return u.ID == "456"
 				})).Return(ErrDatabaseError)
-				
+
 				errorCall := logger.On("Error", "Failed to update user", "error", ErrDatabaseError).Return()
-				
+
 				mock.InOrder(
 					infoCall,
 					updateCall,
@@ -408,21 +408,21 @@ func TestUserService_UpdateUser(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Enable parallel test execution
 			t.Parallel()
-			
+
 			// Create mocks
 			mockDB := new(MockDatabase)
 			mockLogger := new(MockLogger)
-			
+
 			// Setup mocks for this specific test case
 			tc.setupMocks(mockDB, mockLogger)
-			
+
 			// Create service with mocks
 			userService := NewUserService(mockDB, mockLogger)
-			
+
 			// Call the method being tested
 			ctx := context.Background()
 			err := userService.UpdateUser(ctx, tc.user)
-			
+
 			// Assert expectations
 			if tc.expectedErr != nil {
 				assert.Error(t, err)
@@ -430,7 +430,7 @@ func TestUserService_UpdateUser(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			// Verify all expectations were met
 			mockDB.AssertExpectations(t)
 			mockLogger.AssertExpectations(t)

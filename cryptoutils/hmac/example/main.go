@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	hmacutils "huba/cryptoutils/hmac"
 	"log"
 	"os"
-	hmacutils "securedesign/cryptoutils/hmac"
 )
 
 func main() {

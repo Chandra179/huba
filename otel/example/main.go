@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	myotel "securedesign/otel"
+	myotel "huba/otel"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
