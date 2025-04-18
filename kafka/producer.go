@@ -26,15 +26,6 @@ func NewProducer(config *KafkaConfig) *Producer {
 		Async:        config.AsyncProducer, // Use the configuration value
 	}
 
-	// Set idempotence if enabled
-	if config.EnableIdempotence {
-		// Create a transport with a client ID for better idempotence support
-		transport := &kafka.Transport{
-			ClientID: config.ClientID, // Use the configurable client ID
-		}
-		writer.Transport = transport
-	}
-
 	return &Producer{
 		writer: writer,
 		config: config,

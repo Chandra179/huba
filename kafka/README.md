@@ -11,7 +11,6 @@ A simple message broker implementation using Kafka and Golang with the following
 2. **Producer Features**
    - Retry mechanism with configurable retry count
    - Exponential backoff between retries
-   - Idempotent message delivery to prevent duplicates
    - Synchronous and asynchronous message production
 
 3. **Consumer Features**

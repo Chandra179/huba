@@ -47,19 +47,3 @@ func CreateTopic(ctx context.Context, config *KafkaConfig) error {
 
 	return nil
 }
-
-// DeleteTopic deletes a Kafka topic
-func DeleteTopic(ctx context.Context, config *KafkaConfig) error {
-	conn, err := kafka.DialContext(ctx, "tcp", config.Brokers[0])
-	if err != nil {
-		return fmt.Errorf("failed to dial leader: %w", err)
-	}
-	defer conn.Close()
-
-	err = conn.DeleteTopics(config.Topic)
-	if err != nil {
-		return fmt.Errorf("failed to delete topic: %w", err)
-	}
-
-	return nil
-}

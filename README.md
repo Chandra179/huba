@@ -1,72 +1,39 @@
-# GoLib
+# GoLib: Secure, Modular Go Library for Modern Web Applications
 
-A comprehensive Go library for implementing secure authentication and authorization patterns in web applications.
+GoLib is a comprehensive, modular Go library for implementing secure authentication, authorization, distributed caching, observability, and scalable patterns in web applications and microservices.
 
-## Overview
+## Features
 
-SecureDesign provides a collection of security-focused modules for Go applications, including:
+- **OAuth 2.0 & SSO**: Integrations for Google OAuth, Keycloak, and OpenID Connect.
+- **WebAuthn**: Passwordless authentication using the Web Authentication API.
+- **Kafka**: Producer/consumer utilities for Apache Kafka.
+- **OpenTelemetry (OTEL)**: Tracing, metrics, and logging for observability.
+- **Cryptographic Utilities**: ECDSA, HMAC, and more.
+- **Worker Pool**: Efficient concurrent processing.
+- **Distributed Cache (Redis)**: Cache-aside pattern, distributed locking, and rate limiting.
 
-- OAuth 2.0 integration
-- WebAuthn (passwordless authentication)
-- Single Sign-On (SSO) implementations
-- Kafka integration
-- OpenTelemetry observability
-- Cryptographic utilities
-- Worker pool for concurrent processing
+---
 
-## Modules
+## Module Overview
 
-### OAuth
+| Module         | Description                                                      |
+|---------------|------------------------------------------------------------------|
+| `oauth`       | OAuth 2.0 client, Google integration, middleware, handlers        |
+| `webauthn`    | Passwordless authentication, user store, HTTP handlers            |
+| `sso`         | SSO providers (Keycloak), session management, RBAC                |
+| `kafka`       | Kafka producer/consumer, message utilities                        |
+| `otel`        | OpenTelemetry tracing, metrics, logging                           |
+| `cryptoutils` | ECDSA, HMAC, and cryptographic helpers                            |
+| `workerpool`  | Goroutine pool for concurrent task processing                     |
+| `cache`       | Redis-based distributed cache, locking, rate limiting             |
 
-The `oauth` package provides OAuth 2.0 client implementations for various providers:
+See each module's `README.md` or `example/` directory for details and usage.
 
-- Google OAuth integration
-- Middleware for OAuth-based authentication
-- Request handlers for OAuth flows
-
-### WebAuthn
-
-The `webauthn` package implements passwordless authentication using the Web Authentication API:
-
-- User registration with WebAuthn
-- User authentication with WebAuthn
-- In-memory user store
-- HTTP handlers for WebAuthn operations
-
-### SSO
-
-The `sso` directory contains implementations for various Single Sign-On (SSO) providers:
-
-- Keycloak integration with OAuth 2.0 and OpenID Connect (OIDC)
-- Common features like user authentication, session management, and role-based access control
-
-### Kafka
-
-The `kafka` package provides utilities for working with Apache Kafka:
-
-- Producer and consumer implementations
-- Message handling utilities
-
-### OpenTelemetry (OTEL)
-
-The `otel` package provides OpenTelemetry integration for observability:
-
-- Tracing
-- Metrics
-- Logging
-
-### Cryptographic Utilities
-
-The `cryptoutils` package provides utilities for cryptographic operations.
-
-### Worker Pool
-
-The `workerpool` package provides a worker pool implementation for concurrent processing.
+---
 
 ## Getting Started
 
 ### Prerequisites
-
 - Go 1.24 or higher
 - Docker (for running examples with dependencies)
 
@@ -97,7 +64,17 @@ go run main.go
 # Run OTEL example
 cd otel/example
 go run main.go
+
+# Run Kafka example
+cd kafka/example
+go run main.go
+
+# Run Redis cache example
+cd cache/example
+go run main.go
 ```
+
+---
 
 ## Development
 
@@ -122,48 +99,40 @@ docker build -t securedesign .
 docker run -p 8080:8080 securedesign
 ```
 
+---
+
 ## Configuration
 
 Configuration is handled through environment variables. See `.env.example` for available options.
 
-## Security Considerations
+---
+
+## Security Best Practices
 
 - Always use HTTPS in production
 - Set the `Secure` flag to `true` for cookies in production
-- Use strong client secrets and regularly rotate them
+- Use strong client secrets and rotate them regularly
 - Validate tokens on the server side
 - Implement proper session management
 - Use role-based access control for sensitive operations
 
-## License
+---
 
-This project is licensed under the MIT License.
+## Distributed Cache System with Redis
 
-# Distributed Cache System with Redis
+The `cache` package provides a Go implementation of a distributed cache system using Redis.
 
-This package provides a Go implementation of a distributed cache system using Redis.
-
-## Features
-
+### Features
 - Basic cache operations (Get, Set, Delete, Exists)
 - Cache-aside pattern for transparent loading from a data source
 - Distributed locking for coordinating access across services
 - Rate limiting with sliding window algorithm
 
-## Requirements
-
+### Requirements
 - Go 1.24 or later
 - Redis server (v6.0 or later recommended)
 
-## Installation
-
-Add the dependency to your project:
-
-```bash
-go get github.com/redis/go-redis/v9
-```
-
-## Running Redis with Docker
+### Running Redis with Docker
 
 The project includes a Docker Compose configuration for running Redis:
 
@@ -172,7 +141,7 @@ The project includes a Docker Compose configuration for running Redis:
 docker-compose up -d redis
 
 # Or use the management script
-./scripts/redis-management.sh start
+./cache/redis-management.sh start
 ```
 
 The Redis container is configured with:
@@ -182,14 +151,24 @@ The Redis container is configured with:
 
 Management script commands:
 ```bash
-./scripts/redis-management.sh start  # Start Redis container
-./scripts/redis-management.sh stop   # Stop Redis container
-./scripts/redis-management.sh cli    # Open Redis CLI
-./scripts/redis-management.sh flush  # Flush all Redis data
-./scripts/redis-management.sh logs   # View Redis logs
-./scripts/redis-management.sh info   # Show Redis info
+./cache/redis-management.sh start  # Start Redis container
+./cache/redis-management.sh stop   # Stop Redis container
+./cache/redis-management.sh cli    # Open Redis CLI
+./cache/redis-management.sh flush  # Flush all Redis data
+./cache/redis-management.sh logs   # View Redis logs
+./cache/redis-management.sh info   # Show Redis info
 ```
 
-## Basic Usage
+---
 
-// ... existing code ... 
+## Contributing
+
+Contributions are welcome! Please open issues or submit pull requests. For major changes, open an issue first to discuss what you would like to change.
+
+## License
+
+This project is licensed under the MIT License.
+
+## Contact
+
+For questions or support, open an issue or contact the maintainer at [your-email@example.com].

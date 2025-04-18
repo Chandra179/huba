@@ -1,0 +1,61 @@
+sequenceDiagram
+    actor Client
+    participant Producer
+    participant "Kafka Broker" as Kafka
+    participant Consumer
+    participant Handler
+
+    %% -- Topic Management -- %%
+    Client->>Kafka: CreateTopic(config)
+    Note right of Kafka: Sets retention period, size, partitions, etc.
+    Kafka-->>Client: Topic Created
+
+    %% -- Message Production -- %%
+    Client->>Producer: NewProducer(config)
+    activate Producer
+
+    Client->>Producer: Produce(ctx, key, value)
+    Producer->>Kafka: WriteMessages(msg)
+    Note right of Kafka: With retries and backoff
+    Kafka-->>Producer: Acknowledgment
+    Producer-->>Client: Success/Error
+    deactivate Producer
+
+    %% -- Message Consumption -- %%
+    Client->>Consumer: NewConsumer(config)
+    activate Consumer
+    Note right of Consumer: Configures auto-commit if enabled
+
+    Client->>Consumer: Consume(ctx, handler)
+    activate Consumer
+
+    loop Until context canceled
+        Consumer->>Kafka: FetchMessage()
+        Kafka-->>Consumer: Message
+        Consumer->>Handler: handler(message)
+        activate Handler
+        Handler-->>Consumer: Result
+        deactivate Handler
+
+        alt Auto-commit enabled
+            Consumer->>Consumer: Add to uncommitted
+            Note right of Consumer: Periodic commit based on interval
+        else Manual commit
+            Consumer->>Kafka: CommitMessages()
+            Kafka-->>Consumer: Commit Acknowledged
+        end
+    end
+    deactivate Consumer
+
+    %% -- Graceful Shutdown -- %%
+    Client->>Consumer: Close()
+    activate Consumer
+    Consumer->>Kafka: CommitMessages(remaining)
+    Consumer->>Consumer: Stop auto-commit loop
+    Consumer-->>Client: Closed
+    deactivate Consumer
+
+    Client->>Producer: Close()
+    activate Producer
+    Producer-->>Client: Closed
+    deactivate Producer
